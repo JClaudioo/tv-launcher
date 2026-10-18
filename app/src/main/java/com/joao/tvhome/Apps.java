@@ -3,7 +3,10 @@ package com.joao.tvhome;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
+import android.util.DisplayMetrics;
 import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
 import android.widget.Toast;
@@ -34,9 +37,21 @@ final class Apps {
         }
     }
 
+    /** Ícone na maior resolução que o app oferece (xxxhdpi), para não ficar borrado na TV. */
     static Drawable icon(Context c, String pkg) {
+        PackageManager pm = c.getPackageManager();
         try {
-            return c.getPackageManager().getApplicationIcon(pkg);
+            ApplicationInfo ai = pm.getApplicationInfo(pkg, 0);
+            if (ai.icon != 0) {
+                try {
+                    Resources r = pm.getResourcesForApplication(ai);
+                    Drawable d = r.getDrawableForDensity(ai.icon, DisplayMetrics.DENSITY_XXXHIGH, null);
+                    if (d != null) return d;
+                } catch (Exception ignored) {
+                    // cai para o ícone padrão abaixo
+                }
+            }
+            return pm.getApplicationIcon(ai);
         } catch (PackageManager.NameNotFoundException e) {
             return null;
         }

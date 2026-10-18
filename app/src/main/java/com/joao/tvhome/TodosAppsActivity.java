@@ -17,7 +17,7 @@ import java.util.List;
 /** Grade com todos os apps instalados, no mesmo visual da tela inicial. */
 public class TodosAppsActivity extends Activity {
     private static final int COLS = 6;
-    private static final float TILE = 150f;
+    private static final float TILE = 120f;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -41,7 +41,7 @@ public class TodosAppsActivity extends Activity {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setClipChildren(false);
-        content.setPadding(Ui.px(112 - TileView.PAD), Ui.px(90), Ui.px(112 - TileView.PAD), Ui.px(90));
+        content.setPadding(Ui.px(112), Ui.px(90), Ui.px(112), Ui.px(90));
         scroll.addView(content, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -51,14 +51,12 @@ public class TodosAppsActivity extends Activity {
         kicker.setLetterSpacing(0.18f);
         kicker.setText("TODOS OS APPS");
         LinearLayout.LayoutParams klp = wrap();
-        klp.leftMargin = Ui.px(TileView.PAD);
-        content.addView(kicker, klp);
+                content.addView(kicker, klp);
 
         TextView count = Ui.text(this, 22, 300, 0xADFFFFFF);
         count.setText(apps.size() + (apps.size() == 1 ? " app instalado" : " apps instalados"));
         LinearLayout.LayoutParams clp = wrap();
-        clp.leftMargin = Ui.px(TileView.PAD);
-        clp.topMargin = Ui.px(10);
+                clp.topMargin = Ui.px(10);
         clp.bottomMargin = Ui.px(20);
         content.addView(count, clp);
 
@@ -69,8 +67,10 @@ public class TodosAppsActivity extends Activity {
                 row = new LinearLayout(this);
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setClipChildren(false);
-                content.addView(row, new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                LinearLayout.LayoutParams rowlp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                rowlp.topMargin = Ui.px(44);
+                content.addView(row, rowlp);
             }
             final Apps.Entry e = apps.get(i);
 
@@ -90,7 +90,7 @@ public class TodosAppsActivity extends Activity {
             label.setGravity(Gravity.CENTER_HORIZONTAL);
             label.setMaxWidth(Ui.px(210));
             LinearLayout.LayoutParams llp = wrap();
-            llp.topMargin = Ui.px(16 - TileView.PAD);
+            llp.topMargin = Ui.px(18);
             cell.addView(label, llp);
 
             tile.setOnFocusChangeListener((v, has) -> {

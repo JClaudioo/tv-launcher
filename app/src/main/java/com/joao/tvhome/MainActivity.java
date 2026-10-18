@@ -37,7 +37,15 @@ public class MainActivity extends Activity {
             {"Stremio", "com.stremio.one"},
     };
 
-    private static final float TILE = 150f;
+    // medidas do dock, em px de uma tela 1920x1080
+    private static final float TILE = 120f;      // lado de cada ícone
+    private static final float GAP = 36f;        // folga entre ícones
+    private static final float DOT = 10f;        // pontinho vermelho
+    private static final float DOT_GAP = 20f;    // do ícone ao pontinho
+    private static final float PILL_GAP = 28f;   // da etiqueta ao ícone
+    private static final float PILL_H = 46f;     // altura da etiqueta
+    private static final float DOT_BOTTOM = 96f; // do pontinho à base da tela
+    private static final float DOCK_TOP = DOT_BOTTOM + DOT + DOT_GAP + TILE * 1.09f + PILL_GAP + PILL_H;
     private static final Locale PT_BR = new Locale("pt", "BR");
 
     private TextView greet, clock, date, temp, cond, extra;
@@ -81,18 +89,18 @@ public class MainActivity extends Activity {
         root.addView(bg, match());
         root.addView(new ShadeView(this, 0.8f), match());
 
-        root.addView(buildInfo(), anchored(Gravity.BOTTOM | Gravity.START, Ui.px(112), Ui.px(330)));
+        // o bloco do relógio fica acima do dock, com folga para a etiqueta do app em foco
+        root.addView(buildInfo(), anchored(Gravity.BOTTOM | Gravity.START, Ui.px(112), Ui.px(DOCK_TOP + 34)));
 
-        // o pontinho vermelho fica a 96 px da base, como no layout aprovado
-        root.addView(buildDock(), anchored(Gravity.BOTTOM | Gravity.START,
-                Ui.px(126 - TileView.PAD), Ui.px(96)));
+        // o pontinho vermelho fica a 96 px da base
+        root.addView(buildDock(), anchored(Gravity.BOTTOM | Gravity.START, Ui.px(116), Ui.px(DOT_BOTTOM)));
 
         FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM | Gravity.END);
         blp.rightMargin = Ui.px(112);
         // centro dos botões alinhado ao centro dos blocos do dock
-        blp.bottomMargin = Ui.px(96 + 10 + 14 + TileView.PAD + TILE / 2 - 38);
+        blp.bottomMargin = Ui.px(DOT_BOTTOM + DOT + DOT_GAP + TILE / 2 - 38);
         root.addView(buildButtons(), blp);
         return root;
     }
@@ -188,7 +196,7 @@ public class MainActivity extends Activity {
             pill.setBackground(pg);
             pill.setVisibility(View.INVISIBLE);
             LinearLayout.LayoutParams plp = wrap();
-            plp.bottomMargin = Ui.px(34 - TileView.PAD);
+            plp.bottomMargin = Ui.px(PILL_GAP);
             column.addView(pill, plp);
 
             final TileView tile = new TileView(this, Apps.icon(this, pkg), TILE);
@@ -201,8 +209,8 @@ public class MainActivity extends Activity {
             dd.setColor(Ui.ACCENT);
             dot.setBackground(dd);
             dot.setAlpha(0f);
-            LinearLayout.LayoutParams dotlp = new LinearLayout.LayoutParams(Ui.px(10), Ui.px(10));
-            dotlp.topMargin = Ui.px(22 - TileView.PAD);
+            LinearLayout.LayoutParams dotlp = new LinearLayout.LayoutParams(Ui.px(DOT), Ui.px(DOT));
+            dotlp.topMargin = Ui.px(DOT_GAP);
             column.addView(dot, dotlp);
 
             final int index = tiles.size();
@@ -215,7 +223,7 @@ public class MainActivity extends Activity {
             tile.setOnClickListener(v -> Apps.launch(this, pkg));
 
             LinearLayout.LayoutParams colp = wrap();
-            if (index > 0) colp.leftMargin = Ui.px(40 - TileView.PAD * 2);
+            if (index > 0) colp.leftMargin = Ui.px(GAP);
             dock.addView(column, colp);
             tiles.add(tile);
         }
