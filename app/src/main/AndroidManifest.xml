@@ -49,5 +49,20 @@
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode|smallestScreenSize"
             android:exported="false"
             android:screenOrientation="landscape" />
+
+        <!-- Pedidos do controle no celular: tvlauncher://abrir?app=PACOTE e tvlauncher://apps -->
+        <activity
+            android:name=".AbrirActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tvlauncher" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

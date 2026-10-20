@@ -57,6 +57,17 @@ final class Apps {
         }
     }
 
+    /** Nome do app como aparece no sistema. */
+    static String label(Context c, String pkg) {
+        PackageManager pm = c.getPackageManager();
+        try {
+            CharSequence l = pm.getApplicationInfo(pkg, 0).loadLabel(pm);
+            return l == null ? pkg : l.toString();
+        } catch (PackageManager.NameNotFoundException e) {
+            return pkg;
+        }
+    }
+
     static Intent launchIntent(Context c, String pkg) {
         PackageManager pm = c.getPackageManager();
         Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);

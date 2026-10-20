@@ -4,6 +4,21 @@ Tela inicial própria para a Mi Box (Android TV 11): foto fixa do Monte Fuji com
 relógio, data, clima de Ceres-GO, dock de apps e detalhes em vermelho. Sem propaganda,
 sem recomendações, sem serviços rodando em segundo plano.
 
+## Tela inicial: 6 posições
+
+- **Segure OK** num app da tela inicial: Trocar app, Mover para a esquerda/direita ou Deixar vazio
+- Posição vazia aparece com um **+**; OK nela abre a lista para escolher
+- A escolha fica salva na box
+
+## Pedidos do celular
+
+O controle no launcher do S24 abre apps e a lista de apps por estes links:
+
+```bash
+adb shell am start -a android.intent.action.VIEW -d "tvlauncher://abrir?app=com.netflix.ninja"
+adb shell am start -a android.intent.action.VIEW -d "tvlauncher://apps"
+```
+
 ## Compilar
 
 O APK é compilado pelo GitHub Actions a cada push na branch `main`
@@ -33,7 +48,7 @@ então ele instala por cima sem perder nada.
 
 | O quê | Onde |
 |---|---|
-| Apps do dock e a ordem | `DOCK` em `MainActivity.java` (nome e pacote) |
+| Apps do dock e a ordem | Na própria TV: segure OK num app da tela inicial (padrão em `Dock.java`) |
 | Nome na saudação | `updateClock()` em `MainActivity.java` |
 | Cor de destaque | `ACCENT` em `Ui.java` |
 | Foto de fundo | `app/src/main/res/drawable-nodpi/fundo.jpg` (1920x1080) |

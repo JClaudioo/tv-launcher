@@ -21,7 +21,11 @@ class TileView extends View {
     private final Drawable icon;
     private final Paint base = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint dash = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint plus = new Paint(Paint.ANTI_ALIAS_FLAG);
     private boolean focused;
+    /** Posição sem app: quadrado tracejado com um "+". */
+    private boolean empty;
 
     TileView(Context c, Drawable icon, float tileSize) {
         super(c);
@@ -33,6 +37,15 @@ class TileView extends View {
         ring.setStyle(Paint.Style.STROKE);
         ring.setColor(Ui.ACCENT);
         ring.setStrokeWidth(Ui.pxf(4));
+        dash.setStyle(Paint.Style.STROKE);
+        dash.setColor(0x73FFFFFF);
+        dash.setStrokeWidth(Ui.pxf(2));
+        dash.setPathEffect(new android.graphics.DashPathEffect(new float[]{Ui.pxf(9), Ui.pxf(7)}, 0));
+        plus.setStyle(Paint.Style.STROKE);
+        plus.setColor(0xBFFFFFFF);
+        plus.setStrokeWidth(Ui.pxf(3));
+        plus.setStrokeCap(Paint.Cap.ROUND);
+        setLongClickable(true);
 
         final float radius = Ui.pxf(tileSize * 0.24f);
         setOutlineProvider(new ViewOutlineProvider() {
@@ -43,6 +56,12 @@ class TileView extends View {
         });
         setClipToOutline(true);
         applyShadow();
+    }
+
+    void setEmpty(boolean e) {
+        empty = e;
+        base.setColor(e ? 0x0FFFFFFF : 0xFF161618);
+        invalidate();
     }
 
     void setFocusedLook(boolean f) {
@@ -73,7 +92,15 @@ class TileView extends View {
         float r = Ui.pxf(tile * 0.24f);
         RectF box = new RectF(0, 0, getWidth(), getHeight());
         canvas.drawRect(box, base);
-        drawIcon(canvas);
+        if (empty) {
+            float in = dash.getStrokeWidth();
+            canvas.drawRoundRect(new RectF(in, in, getWidth() - in, getHeight() - in), r - in, r - in, dash);
+            float cx = getWidth() / 2f, cy = getHeight() / 2f, a = getWidth() * 0.15f;
+            canvas.drawLine(cx - a, cy, cx + a, cy, plus);
+            canvas.drawLine(cx, cy - a, cx, cy + a, plus);
+        } else {
+            drawIcon(canvas);
+        }
         if (focused) {
             float half = ring.getStrokeWidth() / 2f;
             RectF in = new RectF(half, half, getWidth() - half, getHeight() - half);

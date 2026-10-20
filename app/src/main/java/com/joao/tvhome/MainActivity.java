@@ -28,15 +28,6 @@ import java.util.Locale;
 /** Tela inicial: foto fixa, relógio, data, clima de Ceres e dock de apps. */
 public class MainActivity extends Activity {
 
-    /** Apps do dock, na ordem em que aparecem. Os que não estiverem instalados são pulados. */
-    static final String[][] DOCK = {
-            {"YouTube", "com.google.android.youtube.tv"},
-            {"Netflix", "com.netflix.ninja"},
-            {"Disney+", "com.disney.disneyplus"},
-            {"Globoplay", "com.globo.globotv"},
-            {"Stremio", "com.stremio.one"},
-    };
-
     // medidas do dock, em px de uma tela 1920x1080
     private static final float TILE = 120f;      // lado de cada ícone
     private static final float GAP = 36f;        // folga entre ícones
@@ -51,6 +42,10 @@ public class MainActivity extends Activity {
     private TextView greet, clock, date, temp, cond, extra;
     private WeatherIconView wicon;
     private final List<TileView> tiles = new ArrayList<>();
+    private LinearLayout dockBox;
+    private FrameLayout root;
+    private View menu;
+    private String dockKey = "";
     private int lastFocus = 0;
     private Weather.Data weather;
 
@@ -80,7 +75,7 @@ public class MainActivity extends Activity {
     }
 
     private View build() {
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         root.setClipChildren(false);
 
         ImageView bg = new ImageView(this);
@@ -169,17 +164,26 @@ public class MainActivity extends Activity {
     }
 
     private View buildDock() {
-        LinearLayout dock = new LinearLayout(this);
-        dock.setOrientation(LinearLayout.HORIZONTAL);
-        dock.setGravity(Gravity.BOTTOM);
-        dock.setClipChildren(false);
-        dock.setClipToPadding(false);
+        dockBox = new LinearLayout(this);
+        dockBox.setOrientation(LinearLayout.HORIZONTAL);
+        dockBox.setGravity(Gravity.BOTTOM);
+        dockBox.setClipChildren(false);
+        dockBox.setClipToPadding(false);
+        fillDock();
+        return dockBox;
+    }
 
+    /** Monta as 6 posições (de novo, quando alguma muda). Posição vazia ou app desinstalado: "+". */
+    private void fillDock() {
+        String[] slots = Dock.load(this);
+        dockKey = String.join(",", slots);
+        dockBox.removeAllViews();
         tiles.clear();
-        for (String[] app : DOCK) {
-            final String name = app[0];
-            final String pkg = app[1];
-            if (!Apps.installed(this, pkg)) continue;
+        for (int i = 0; i < Dock.SIZE; i++) {
+            final int index = i;
+            final String pkg = slots[i];
+            final boolean empty = pkg.isEmpty() || !Apps.installed(this, pkg);
+            final String name = empty ? "Escolher app" : Apps.label(this, pkg);
 
             LinearLayout column = new LinearLayout(this);
             column.setOrientation(LinearLayout.VERTICAL);
@@ -188,6 +192,7 @@ public class MainActivity extends Activity {
 
             final TextView pill = Ui.text(this, 24, 400, Ui.WHITE);
             pill.setText(name);
+            pill.setSingleLine(true);
             pill.setPadding(Ui.px(22), Ui.px(8), Ui.px(22), Ui.px(8));
             GradientDrawable pg = new GradientDrawable();
             pg.setCornerRadius(Ui.pxf(999));
@@ -199,8 +204,9 @@ public class MainActivity extends Activity {
             plp.bottomMargin = Ui.px(PILL_GAP);
             column.addView(pill, plp);
 
-            final TileView tile = new TileView(this, Apps.icon(this, pkg), TILE);
-            tile.setContentDescription(name);
+            final TileView tile = new TileView(this, empty ? null : Apps.icon(this, pkg), TILE);
+            tile.setEmpty(empty);
+            tile.setContentDescription(empty ? "Posição vazia: segure OK para escolher um app" : name);
             column.addView(tile);
 
             final View dot = new View(this);
@@ -213,21 +219,134 @@ public class MainActivity extends Activity {
             dotlp.topMargin = Ui.px(DOT_GAP);
             column.addView(dot, dotlp);
 
-            final int index = tiles.size();
             tile.setOnFocusChangeListener((v, has) -> {
                 tile.setFocusedLook(has);
                 pill.setVisibility(has ? View.VISIBLE : View.INVISIBLE);
                 dot.animate().alpha(has ? 1f : 0f).setDuration(160).start();
                 if (has) lastFocus = index;
             });
-            tile.setOnClickListener(v -> Apps.launch(this, pkg));
+            // OK abre o app (posição vazia: escolhe um); segurar OK abre o menu da posição
+            tile.setOnClickListener(v -> {
+                if (empty) pickApp(index);
+                else Apps.launch(this, pkg);
+            });
+            tile.setOnLongClickListener(v -> {
+                showMenu(index, name, empty);
+                return true;
+            });
 
             LinearLayout.LayoutParams colp = wrap();
             if (index > 0) colp.leftMargin = Ui.px(GAP);
-            dock.addView(column, colp);
+            dockBox.addView(column, colp);
             tiles.add(tile);
         }
-        return dock;
+    }
+
+    private void focusTile(int index) {
+        if (tiles.isEmpty()) return;
+        lastFocus = Math.max(0, Math.min(index, tiles.size() - 1));
+        tiles.get(lastFocus).requestFocus();
+    }
+
+    private void pickApp(int index) {
+        startActivity(new Intent(this, TodosAppsActivity.class).putExtra(TodosAppsActivity.EXTRA_SLOT, index));
+    }
+
+    // ---------- menu da posição (segurar OK) ----------
+
+    private void showMenu(final int index, String name, boolean empty) {
+        closeMenu();
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(Ui.px(12), Ui.px(16), Ui.px(12), Ui.px(16));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(Ui.pxf(24));
+        bg.setColor(0xEB0E0A0C);
+        bg.setStroke(Math.max(1, Ui.px(1.5f)), Ui.alpha(Ui.ACCENT, 0.55f));
+        box.setBackground(bg);
+        box.setElevation(Ui.pxf(24));
+
+        TextView title = Ui.text(this, 20, 400, Ui.ACCENT);
+        title.setLetterSpacing(0.16f);
+        title.setAllCaps(true);
+        title.setSingleLine(true);
+        title.setText("Posição " + (index + 1) + " · " + name);
+        title.setPadding(Ui.px(18), Ui.px(4), Ui.px(18), Ui.px(10));
+        box.addView(title);
+
+        List<View> items = new ArrayList<>();
+        items.add(menuItem(box, empty ? "Escolher app" : "Trocar app", () -> pickApp(index)));
+        if (index > 0) items.add(menuItem(box, "Mover para a esquerda", () -> moveSlot(index, -1)));
+        if (index < Dock.SIZE - 1) items.add(menuItem(box, "Mover para a direita", () -> moveSlot(index, 1)));
+        if (!empty) items.add(menuItem(box, "Deixar vazio", () -> {
+            String[] s = Dock.load(this);
+            s[index] = "";
+            Dock.save(this, s);
+            fillDock();
+            focusTile(index);
+        }));
+
+        // as setas ficam presas no menu enquanto ele está aberto
+        for (int k = 0; k < items.size(); k++) {
+            View it = items.get(k);
+            it.setId(View.generateViewId());
+        }
+        for (int k = 0; k < items.size(); k++) {
+            View it = items.get(k);
+            it.setNextFocusLeftId(it.getId());
+            it.setNextFocusRightId(it.getId());
+            it.setNextFocusUpId(items.get(Math.max(0, k - 1)).getId());
+            it.setNextFocusDownId(items.get(Math.min(items.size() - 1, k + 1)).getId());
+        }
+
+        TextView hint = Ui.text(this, 18, 300, 0x99FFFFFF);
+        hint.setText("Voltar fecha o menu");
+        hint.setPadding(Ui.px(18), Ui.px(10), Ui.px(18), Ui.px(2));
+        box.addView(hint);
+
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Ui.px(400), ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.START);
+        lp.leftMargin = Ui.px(116 + index * (TILE + GAP) - 40);
+        lp.bottomMargin = Ui.px(330);
+        root.addView(box, lp);
+        menu = box;
+        items.get(0).requestFocus();
+    }
+
+    private View menuItem(LinearLayout box, String label, Runnable action) {
+        final TextView t = Ui.text(this, 26, 300, Ui.WHITE);
+        t.setText(label);
+        t.setFocusable(true);
+        t.setClickable(true);
+        t.setPadding(Ui.px(18), Ui.px(14), Ui.px(18), Ui.px(14));
+        final GradientDrawable on = new GradientDrawable();
+        on.setCornerRadius(Ui.pxf(14));
+        on.setColor(Ui.alpha(Ui.ACCENT, 0.28f));
+        on.setStroke(Ui.px(2), Ui.ACCENT);
+        t.setOnFocusChangeListener((v, has) -> {
+            t.setBackground(has ? on : null);
+            t.setTypeface(Ui.font(this, has ? 500 : 300));
+        });
+        t.setOnClickListener(v -> {
+            closeMenu();
+            action.run();
+        });
+        box.addView(t, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return t;
+    }
+
+    private void moveSlot(int index, int dir) {
+        int to = Dock.move(this, index, dir);
+        fillDock();
+        focusTile(to);
+    }
+
+    private boolean closeMenu() {
+        if (menu == null) return false;
+        root.removeView(menu);
+        menu = null;
+        focusTile(lastFocus);
+        return true;
     }
 
     private View buildButtons() {
@@ -311,9 +430,10 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(weatherLoop);
         handler.postDelayed(weatherLoop, first);
 
-        if (!tiles.isEmpty()) {
-            tiles.get(Math.min(lastFocus, tiles.size() - 1)).requestFocus();
-        }
+        closeMenu();
+        // voltou da lista de apps com uma posição trocada: monta de novo
+        if (!dockKey.equals(String.join(",", Dock.load(this)))) fillDock();
+        focusTile(lastFocus);
     }
 
     @Override
@@ -329,7 +449,8 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        // é a tela inicial: voltar não faz nada
+        // é a tela inicial: voltar só fecha o menu da posição
+        closeMenu();
     }
 
     // ---------- layout ----------

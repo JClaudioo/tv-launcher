@@ -16,6 +16,9 @@ import java.util.List;
 
 /** Grade com todos os apps instalados, no mesmo visual da tela inicial. */
 public class TodosAppsActivity extends Activity {
+    /** Posição da tela inicial a preencher (modo "escolher app"); sem ela, a lista só abre apps. */
+    static final String EXTRA_SLOT = "posicao";
+
     private static final int COLS = 6;
     private static final float TILE = 120f;
 
@@ -46,15 +49,19 @@ public class TodosAppsActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         List<Apps.Entry> apps = Apps.all(this);
+        final int slot = getIntent().getIntExtra(EXTRA_SLOT, -1);
+        final boolean picking = slot >= 0 && slot < Dock.SIZE;
 
         TextView kicker = Ui.text(this, 26, 400, Ui.ACCENT);
         kicker.setLetterSpacing(0.18f);
-        kicker.setText("TODOS OS APPS");
+        kicker.setText(picking ? "ESCOLHER APP · POSIÇÃO " + (slot + 1) : "TODOS OS APPS");
         LinearLayout.LayoutParams klp = wrap();
                 content.addView(kicker, klp);
 
         TextView count = Ui.text(this, 22, 300, 0xADFFFFFF);
-        count.setText(apps.size() + (apps.size() == 1 ? " app instalado" : " apps instalados"));
+        count.setText(picking
+                ? "OK escolhe o app para essa posição · Voltar cancela · o ponto vermelho marca os que já estão na tela inicial"
+                : apps.size() + (apps.size() == 1 ? " app instalado" : " apps instalados"));
         LinearLayout.LayoutParams clp = wrap();
                 clp.topMargin = Ui.px(10);
         clp.bottomMargin = Ui.px(20);
@@ -93,11 +100,30 @@ public class TodosAppsActivity extends Activity {
             llp.topMargin = Ui.px(18);
             cell.addView(label, llp);
 
+            if (picking) {
+                View dot = new View(this);
+                android.graphics.drawable.GradientDrawable dd = new android.graphics.drawable.GradientDrawable();
+                dd.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+                dd.setColor(Ui.ACCENT);
+                dot.setBackground(dd);
+                dot.setVisibility(Dock.contains(this, e.pkg) ? View.VISIBLE : View.INVISIBLE);
+                LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Ui.px(10), Ui.px(10));
+                dlp.topMargin = Ui.px(12);
+                cell.addView(dot, dlp);
+            }
+
             tile.setOnFocusChangeListener((v, has) -> {
                 tile.setFocusedLook(has);
                 label.setTextColor(has ? Ui.ACCENT : 0xD9FFFFFF);
             });
-            tile.setOnClickListener(v -> Apps.launch(this, e.pkg));
+            tile.setOnClickListener(v -> {
+                if (picking) {
+                    Dock.set(this, slot, e.pkg);
+                    finish();
+                } else {
+                    Apps.launch(this, e.pkg);
+                }
+            });
             if (first == null) first = tile;
 
             row.addView(cell, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
