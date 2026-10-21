@@ -32,6 +32,8 @@ echo "3/4  Definindo como tela inicial..."
 adb shell cmd package set-home-activity "$ACT" >/dev/null
 # O launcher do Google tem prioridade de sistema: enquanto estiver ativo, o Android continua escolhendo ele.
 adb shell pm disable-user --user 0 "$STOCK" >/dev/null
+# Google TV: sem a tela do Google, o assistente de configuração assume o botão Home; desativa ele também
+case "$PKG" in *tcl) adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith >/dev/null ;; esac
 atual=$(home_atual)
 echo "     Tela inicial agora: $atual"
 case "$atual" in
@@ -39,6 +41,7 @@ case "$atual" in
   *)
     echo "Não consegui definir como tela inicial. Reativando o launcher original..."
     adb shell pm enable --user 0 "$STOCK" >/dev/null
+    case "$PKG" in *tcl) adb shell pm enable --user 0 com.google.android.tungsten.setupwraith >/dev/null ;; esac
     exit 1 ;;
 esac
 

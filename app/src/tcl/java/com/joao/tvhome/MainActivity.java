@@ -53,6 +53,9 @@ public class MainActivity extends Activity {
             "com.google.android.youtube.tvmusic",
     };
 
+    /** Apps de fábrica da TCL e do chip da TV: nunca aparecem na fileira (Protetor, Quick Panel, TCL Channel, TCL Home, TV...). */
+    static final String[] HIDDEN_PREFIX = {"com.tcl.", "com.droidlogic", "com.amlogic", "com.mirakulo", "com.tvos"};
+
     /** Não aparecem na fileira de apps: ficam no menu Sistema ou não são apps de uso. */
     static final Set<String> HIDDEN = new HashSet<>(Arrays.asList(
             "com.android.vending",
@@ -150,8 +153,12 @@ public class MainActivity extends Activity {
             final int kind = kinds[i];
             View p = pill(names[i], kind);
             p.setOnClickListener(v -> onSystem(kind));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, Ui.px(60));
+            // largura calculada pelo texto (em negrito, o maior caso), para o nome nunca ser cortado
+            android.graphics.Paint m = new android.graphics.Paint();
+            m.setTypeface(Ui.font(this, 500));
+            m.setTextSize(Ui.pxf(22));
+            int w = Ui.px(18 + 26 + 12 + 24 + 8) + Math.round(m.measureText(names[i]));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, Ui.px(60));
             if (i > 0) lp.leftMargin = Ui.px(14);
             menu.addView(p, lp);
             pills.add(p);
@@ -198,9 +205,12 @@ public class MainActivity extends Activity {
         p.setPadding(Ui.px(18), 0, Ui.px(24), 0);
         p.setId(View.generateViewId());
 
-        p.addView(new PillIcon(this, kind), new LinearLayout.LayoutParams(Ui.px(26), Ui.px(26)));
+        PillIcon icon = new PillIcon(this, kind);
+        p.addView(icon, new LinearLayout.LayoutParams(Ui.px(26), Ui.px(26)));
         final TextView t = Ui.text(this, 22, 300, Ui.WHITE);
         t.setText(name);
+        t.setSingleLine(true);
+        t.setMaxLines(1);
         LinearLayout.LayoutParams tlp = wrap();
         tlp.leftMargin = Ui.px(12);
         p.addView(t, tlp);
@@ -385,9 +395,14 @@ public class MainActivity extends Activity {
         }
         Set<String> first = new HashSet<>(Arrays.asList(ORDER));
         for (Apps.Entry e : all) {
-            if (!first.contains(e.pkg) && !HIDDEN.contains(e.pkg)) out.add(e);
+            if (!first.contains(e.pkg) && !HIDDEN.contains(e.pkg) && !factory(e.pkg)) out.add(e);
         }
         return out;
+    }
+
+    private static boolean factory(String pkg) {
+        for (String p : HIDDEN_PREFIX) if (pkg.startsWith(p)) return true;
+        return false;
     }
 
     private void fillApps() {
@@ -410,15 +425,15 @@ public class MainActivity extends Activity {
             tile.setContentDescription(e.label);
             tile.setId(View.generateViewId());
             tile.setNextFocusUpId(up);
-            column.addView(tile);
+            column.addView(tile, new LinearLayout.LayoutParams(Ui.px(TILE), Ui.px(TILE)));
 
             final TextView name = Ui.text(this, 21, 300, 0xD1FFFFFF);
             name.setText(e.label);
             name.setSingleLine(true);
             name.setEllipsize(TextUtils.TruncateAt.END);
-            name.setMaxWidth(Ui.px(TILE + GAP - 4));
+            name.setGravity(Gravity.CENTER_HORIZONTAL);
             name.setShadowLayer(Ui.pxf(8), 0, Ui.pxf(2), 0x99000000);
-            LinearLayout.LayoutParams nlp = wrap();
+            LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             nlp.topMargin = Ui.px(22);
             column.addView(name, nlp);
 
@@ -430,8 +445,9 @@ public class MainActivity extends Activity {
             });
             tile.setOnClickListener(v -> Apps.launch(this, e.pkg));
 
-            LinearLayout.LayoutParams colp = wrap();
-            if (i > 0) colp.leftMargin = Ui.px(GAP);
+            // largura fixa por app: o bloco e o nome cabem e nada fica por cima do vizinho
+            LinearLayout.LayoutParams colp = new LinearLayout.LayoutParams(Ui.px(TILE + 24), ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (i > 0) colp.leftMargin = Ui.px(GAP - 24);
             appsRow.addView(column, colp);
             tiles.add(tile);
         }
