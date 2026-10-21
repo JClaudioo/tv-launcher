@@ -10,8 +10,8 @@ android {
         applicationId 'com.joao.tvhome'
         minSdk 26
         targetSdk 30
-        versionCode 3
-        versionName '1.2'
+        versionCode 4
+        versionName '1.3'
     }
 
     // Assinatura fixa: assim cada nova versão instala por cima da anterior sem desinstalar.
@@ -21,6 +21,21 @@ android {
             storePassword 'tvhome123'
             keyAlias 'tvhome'
             keyPassword 'tvhome123'
+        }
+    }
+
+    // Duas TVs, um código só: o que é comum fica em src/main; o que é de cada TV, em src/box e src/tcl
+    flavorDimensions 'tv'
+    productFlavors {
+        box {
+            dimension 'tv'
+            // Mi Box: mesmo pacote de antes, instala por cima da versão atual
+            applicationId 'com.joao.tvhome'
+        }
+        tcl {
+            dimension 'tv'
+            // TV TCL (Google TV)
+            applicationId 'com.joao.tvhome.tcl'
         }
     }
 

@@ -18,14 +18,17 @@ final class Weather {
     private static final String URL_API = "https://api.open-meteo.com/v1/forecast"
             + "?latitude=-15.3061&longitude=-49.5972"
             + "&current=temperature_2m,weather_code,is_day"
-            + "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
-            + "&timezone=America%2FSao_Paulo&forecast_days=1";
+            + "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code"
+            + "&timezone=America%2FSao_Paulo&forecast_days=6";
     static final long REFRESH_MS = 30 * 60 * 1000L;
 
     static final class Data {
         int temp, max, min, rain, code;
         boolean day;
         long fetchedAt;
+        /** Previsão dos próximos dias (posição 0 = amanhã). Vazia se a leitura guardada for antiga. */
+        String[] fDate = new String[0];
+        int[] fMax = new int[0], fMin = new int[0], fRain = new int[0], fCode = new int[0];
     }
 
     interface Callback {
@@ -85,6 +88,21 @@ final class Weather {
         d.max = (int) Math.round(daily.getJSONArray("temperature_2m_max").getDouble(0));
         d.min = (int) Math.round(daily.getJSONArray("temperature_2m_min").getDouble(0));
         d.rain = daily.getJSONArray("precipitation_probability_max").optInt(0, 0);
+        org.json.JSONArray dates = daily.optJSONArray("time");
+        org.json.JSONArray codes = daily.optJSONArray("weather_code");
+        int n = dates == null ? 0 : Math.max(0, dates.length() - 1);
+        d.fDate = new String[n];
+        d.fMax = new int[n];
+        d.fMin = new int[n];
+        d.fRain = new int[n];
+        d.fCode = new int[n];
+        for (int i = 0; i < n; i++) {
+            d.fDate[i] = dates.optString(i + 1, "");
+            d.fMax[i] = (int) Math.round(daily.getJSONArray("temperature_2m_max").optDouble(i + 1, 0));
+            d.fMin[i] = (int) Math.round(daily.getJSONArray("temperature_2m_min").optDouble(i + 1, 0));
+            d.fRain[i] = daily.getJSONArray("precipitation_probability_max").optInt(i + 1, 0);
+            d.fCode[i] = codes == null ? 3 : codes.optInt(i + 1, 3);
+        }
         return d;
     }
 

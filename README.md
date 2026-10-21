@@ -1,4 +1,28 @@
-# Início — launcher da TV box
+# Início — launcher da TV box e da TV TCL
+
+Um projeto, dois APKs (variantes do Gradle):
+
+| APK | TV | Onde fica o que é só dela |
+|---|---|---|
+| `tvhome-box.apk` | Mi Box (Android TV 11) — 6 posições escolhidas na TV, foto do Monte Fuji | `app/src/box` |
+| `tvhome-tcl.apk` | TV TCL (Google TV, Android 12) — todos os apps na tela, menu Sistema no topo, clima com previsão, foto da praia | `app/src/tcl` |
+
+O que é comum (relógio, clima de Ceres, abrir apps, pedidos do celular, lista de todos os apps) fica em `app/src/main`
+e vale para as duas. A versão da box antes da divisão está marcada como `box-1.2` no Git.
+
+## TV TCL
+
+```bash
+adb connect IP_DA_TCL:5555
+export ANDROID_SERIAL=IP_DA_TCL:5555
+./limpar-tcl.sh                 # desativa propaganda, espelhamento e apps sem uso (lista em apps-tcl-original.txt)
+./instalar.sh tvhome-tcl.apk    # instala e coloca como tela inicial
+```
+
+Desfazer: `./restaurar-tcl.sh` (reativa os apps) e `./restaurar-launcher.sh tcl` (volta a tela inicial do Google).
+
+---
+
 
 Tela inicial própria para a Mi Box (Android TV 11): foto fixa do Monte Fuji com o pagode,
 relógio, data, clima de Ceres-GO, dock de apps e detalhes em vermelho. Sem propaganda,
@@ -23,7 +47,7 @@ adb shell am start -a android.intent.action.VIEW -d "tvlauncher://apps"
 
 O APK é compilado pelo GitHub Actions a cada push na branch `main`
 (ou manualmente em **Actions → Compilar APK → Run workflow**).
-Quando terminar, baixe o artefato **tvhome-apk** na página da execução e extraia o `tvhome.apk`.
+Quando terminar, baixe o artefato **tvhome-box** (ou **tvhome-tcl**) na página da execução e extraia o APK.
 
 ## Instalar na box
 
@@ -31,7 +55,7 @@ Com a box conectada (`adb connect IP_DA_BOX:5555`):
 
 ```bash
 chmod +x instalar.sh restaurar-launcher.sh
-./instalar.sh tvhome.apk
+./instalar.sh tvhome-box.apk
 ```
 
 O script instala, define como tela inicial e só então desativa o launcher original do Google.

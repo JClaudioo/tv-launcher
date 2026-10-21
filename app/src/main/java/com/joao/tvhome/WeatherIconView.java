@@ -16,8 +16,16 @@ class WeatherIconView extends View {
     private final Paint red = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint white = new Paint(Paint.ANTI_ALIAS_FLAG);
 
+    private final float size;
+
     WeatherIconView(Context c) {
+        this(c, 44);
+    }
+
+    /** Tamanho em px de uma tela 1920x1080. */
+    WeatherIconView(Context c, float size) {
         super(c);
+        this.size = size;
         for (Paint p : new Paint[]{red, white}) {
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeCap(Paint.Cap.ROUND);
@@ -35,7 +43,7 @@ class WeatherIconView extends View {
 
     @Override
     protected void onMeasure(int w, int h) {
-        int s = Ui.px(44);
+        int s = Ui.px(size);
         setMeasuredDimension(s, s);
     }
 

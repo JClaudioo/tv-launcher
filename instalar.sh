@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Instala o launcher na TV box e o coloca como tela inicial.
-# Uso: ./instalar.sh tvhome.apk      (com a box já conectada pelo "adb connect IP:5555")
+# Instala o launcher e o coloca como tela inicial.
+# Uso: ./instalar.sh tvhome-box.apk    (Mi Box)
+#      ./instalar.sh tvhome-tcl.apk    (TV TCL)
+# Com a TV já conectada pelo "adb connect IP:5555" (se houver mais de uma, use ANDROID_SERIAL=IP:5555 ./instalar.sh ...)
 set -u
-APK="${1:-tvhome.apk}"
-PKG=com.joao.tvhome
-ACT="$PKG/.MainActivity"
-STOCK=com.google.android.tvlauncher
+APK="${1:-tvhome-box.apk}"
+case "$APK" in
+  *tcl*) PKG=com.joao.tvhome.tcl; STOCK=com.google.android.apps.tv.launcherx ;;
+  *)     PKG=com.joao.tvhome;     STOCK=com.google.android.tvlauncher ;;
+esac
+ACT="$PKG/com.joao.tvhome.MainActivity"
 
 home_atual() {
   adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1 | tr -d '\r'
