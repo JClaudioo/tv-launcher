@@ -38,6 +38,7 @@ final class Ui {
         Typeface t = FONTS.get(weight);
         if (t == null) {
             try {
+                if (android.os.Build.VERSION.SDK_INT < 26) throw new IllegalStateException("fonte variável só no Android 8+");
                 t = new Typeface.Builder(c.getAssets(), "fonts/outfit.ttf")
                         .setFontVariationSettings("'wght' " + weight)
                         .build();

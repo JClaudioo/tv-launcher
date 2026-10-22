@@ -10,6 +10,18 @@ Um projeto, dois APKs (variantes do Gradle):
 O que é comum (relógio, clima de Ceres, abrir apps, pedidos do celular, lista de todos os apps) fica em `app/src/main`
 e vale para as duas. A versão da box antes da divisão está marcada como `box-1.2` no Git.
 
+## Tablet da criança (Galaxy Tab 2, Android 6)
+
+`tvhome-tablet.apk`: só três botões grandes — Vídeos (NewPipe), Câmera e Fotos (Galeria). O adulto entra segurando a
+bateria por 5 segundos e respondendo uma conta (Wi-Fi e Configurações).
+
+```bash
+./limpar-tablet.sh                                        # desativa o que não serve (lista em apps-tablet-original.txt)
+./instalar-tablet.sh tvhome-tablet.apk NewPipe_vX.apk     # instala o NewPipe e o launcher
+```
+
+Desfazer: `./restaurar-tablet.sh`.
+
 ## TV TCL
 
 ```bash
