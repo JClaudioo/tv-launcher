@@ -27,6 +27,7 @@ jobs:
         run: |
           cp app/build/outputs/apk/box/release/app-box-release.apk tvhome-box.apk
           cp app/build/outputs/apk/tcl/release/app-tcl-release.apk tvhome-tcl.apk
+          cp app/build/outputs/apk/tablet/release/app-tablet-release.apk tvhome-tablet.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -37,3 +38,8 @@ jobs:
         with:
           name: tvhome-tcl
           path: tvhome-tcl.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tvhome-tablet
+          path: tvhome-tablet.apk
