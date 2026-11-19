@@ -62,6 +62,25 @@ final class Dock {
         return to;
     }
 
+    /**
+     * Tira das posições os apps que não estão mais instalados.
+     * Chamado quando a tela volta e quando o sistema avisa que um pacote saiu: sem isso a
+     * posição continuava guardando o nome do pacote e a tela mostrava o ícone de um app
+     * que já tinha sido desinstalado.
+     */
+    static boolean limparSumidos(Context c) {
+        String[] s = load(c);
+        boolean mudou = false;
+        for (int i = 0; i < SIZE; i++) {
+            if (!s[i].isEmpty() && !Apps.installed(c, s[i])) {
+                s[i] = "";
+                mudou = true;
+            }
+        }
+        if (mudou) save(c, s);
+        return mudou;
+    }
+
     static boolean contains(Context c, String pkg) {
         for (String p : load(c)) if (p.equals(pkg)) return true;
         return false;

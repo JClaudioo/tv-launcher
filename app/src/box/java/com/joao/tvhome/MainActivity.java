@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
     private TextView greet, clock, date, temp, cond, extra;
     private WeatherIconView wicon;
     private final List<TileView> tiles = new ArrayList<>();
+    private final List<RoundButton> botoes = new ArrayList<>();
     private LinearLayout dockBox;
     private FrameLayout root;
     private View menu;
@@ -90,12 +91,12 @@ public class MainActivity extends Activity {
         // o pontinho vermelho fica a 96 px da base
         root.addView(buildDock(), anchored(Gravity.BOTTOM | Gravity.START, Ui.px(116), Ui.px(DOT_BOTTOM)));
 
+        // os três botões ficam no alto à esquerda, acima do relógio
         FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM | Gravity.END);
-        blp.rightMargin = Ui.px(112);
-        // centro dos botões alinhado ao centro dos blocos do dock
-        blp.bottomMargin = Ui.px(DOT_BOTTOM + DOT + DOT_GAP + TILE / 2 - 38);
+                Gravity.TOP | Gravity.START);
+        blp.leftMargin = Ui.px(102);
+        blp.topMargin = Ui.px(44);
         root.addView(buildButtons(), blp);
         return root;
     }
@@ -176,7 +177,7 @@ public class MainActivity extends Activity {
     /** Monta as 6 posições (de novo, quando alguma muda). Posição vazia ou app desinstalado: "+". */
     private void fillDock() {
         String[] slots = Dock.load(this);
-        dockKey = String.join(",", slots);
+        dockKey = estadoDoDock(slots);
         dockBox.removeAllViews();
         tiles.clear();
         for (int i = 0; i < Dock.SIZE; i++) {
@@ -235,11 +236,29 @@ public class MainActivity extends Activity {
                 return true;
             });
 
+            tile.setId(View.generateViewId());
             LinearLayout.LayoutParams colp = wrap();
             if (index > 0) colp.leftMargin = Ui.px(GAP);
             dockBox.addView(column, colp);
             tiles.add(tile);
         }
+        // descer de qualquer um dos três botões cai sempre no primeiro bloco
+        if (!tiles.isEmpty()) {
+            for (RoundButton b : botoes) b.setNextFocusDownId(tiles.get(0).getId());
+        }
+    }
+
+    /**
+     * A assinatura da tela inicial. Entra o nome do pacote e se ele ainda está instalado:
+     * desinstalar um app não mexe na lista salva, então comparar só os nomes dizia que nada
+     * tinha mudado e o bloco continuava mostrando o app que já não existia.
+     */
+    private String estadoDoDock(String[] slots) {
+        StringBuilder b = new StringBuilder();
+        for (String pkg : slots) {
+            b.append(pkg).append(pkg.isEmpty() || Apps.installed(this, pkg) ? "+" : "-").append(',');
+        }
+        return b.toString();
     }
 
     private void focusTile(int index) {
@@ -355,15 +374,21 @@ public class MainActivity extends Activity {
         row.setClipChildren(false);
         int[] kinds = {RoundButton.APPS, RoundButton.WIFI, RoundButton.SETTINGS};
         String[] labels = {"Todos os apps", "Wi-Fi", "Configurações"};
+        botoes.clear();
         for (int i = 0; i < kinds.length; i++) {
             final int kind = kinds[i];
             final RoundButton b = new RoundButton(this, kind, labels[i]);
+            b.setId(View.generateViewId());
             b.setOnFocusChangeListener((v, has) -> b.setFocusedLook(has));
             b.setOnClickListener(v -> onButton(kind));
             LinearLayout.LayoutParams lp = wrap();
             if (i > 0) lp.leftMargin = Ui.px(22);
             row.addView(b, lp);
+            botoes.add(b);
         }
+        // nas pontas o controle não escapa para o nada
+        botoes.get(0).setNextFocusLeftId(botoes.get(0).getId());
+        botoes.get(botoes.size() - 1).setNextFocusRightId(botoes.get(botoes.size() - 1).getId());
         return row;
     }
 
@@ -416,6 +441,17 @@ public class MainActivity extends Activity {
 
     // ---------- ciclo de vida ----------
 
+    /** Instalou, desinstalou ou atualizou um app: a tela pode estar mostrando um fantasma. */
+    private final BroadcastReceiver packageReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context c, Intent i) {
+            closeMenu();
+            Dock.limparSumidos(MainActivity.this);
+            fillDock();
+            focusTile(lastFocus);
+        }
+    };
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -423,6 +459,12 @@ public class MainActivity extends Activity {
         f.addAction(Intent.ACTION_TIME_CHANGED);
         f.addAction(Intent.ACTION_TIMEZONE_CHANGED);
         registerReceiver(timeReceiver, f);
+        IntentFilter pf = new IntentFilter(Intent.ACTION_PACKAGE_ADDED);
+        pf.addAction(Intent.ACTION_PACKAGE_REMOVED);
+        pf.addAction(Intent.ACTION_PACKAGE_REPLACED);
+        pf.addAction(Intent.ACTION_PACKAGE_CHANGED);
+        pf.addDataScheme("package");
+        registerReceiver(packageReceiver, pf);
         updateClock();
 
         long age = weather == null ? Long.MAX_VALUE : System.currentTimeMillis() - weather.fetchedAt;
@@ -431,8 +473,9 @@ public class MainActivity extends Activity {
         handler.postDelayed(weatherLoop, first);
 
         closeMenu();
-        // voltou da lista de apps com uma posição trocada: monta de novo
-        if (!dockKey.equals(String.join(",", Dock.load(this)))) fillDock();
+        // voltou da lista de apps, ou algum app sumiu enquanto a tela estava parada
+        Dock.limparSumidos(this);
+        if (!dockKey.equals(estadoDoDock(Dock.load(this)))) fillDock();
         focusTile(lastFocus);
     }
 
@@ -441,6 +484,10 @@ public class MainActivity extends Activity {
         super.onPause();
         try {
             unregisterReceiver(timeReceiver);
+        } catch (IllegalArgumentException ignored) {
+        }
+        try {
+            unregisterReceiver(packageReceiver);
         } catch (IllegalArgumentException ignored) {
         }
         handler.removeCallbacks(weatherLoop);
