@@ -10,8 +10,8 @@ android {
         applicationId 'com.joao.tvhome'
         minSdk 26
         targetSdk 30
-        versionCode 7
-        versionName '1.5'
+        versionCode 8
+        versionName '1.6'
     }
 
     // Assinatura fixa: assim cada nova versão instala por cima da anterior sem desinstalar.
@@ -36,6 +36,11 @@ android {
             dimension 'tv'
             // TV TCL (Google TV)
             applicationId 'com.joao.tvhome.tcl'
+        }
+        fire {
+            dimension 'tv'
+            // Fire TV Stick (Fire OS 7/8) numa TV pequena (~21")
+            applicationId 'com.joao.tvhome.fire'
         }
         tablet {
             dimension 'tv'
