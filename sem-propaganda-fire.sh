@@ -17,16 +17,25 @@ A() { adb -s "$ALVO" "$@"; }
 
 LAUNCHER="com.joao.tvhome.fire/com.joao.tvhome.MainActivity"
 
-# Propagandas, patrocinados e telemetria — o que some da experiência sem quebrar nada de uso.
+# Propagandas, patrocinados, recomendações e apps de loja que não servem no dia a dia.
+# Lista afinada para o Fire deste usuário (conferida com 'pm list packages | grep amazon').
+# Nada aqui mexe em Wi-Fi, Appstore, controle remoto, Prime Video nem Amazon Music.
 PROPAGANDA=(
-  com.amazon.device.sale.service    # promoções e ofertas na tela
-  com.amazon.kindle.cms             # motor de recomendações que alimenta as fileiras patrocinadas
+  com.amazon.ftvads.deeplinking     # anúncios do Fire TV
+  com.amazon.hybridadidservice      # ID de publicidade (rastreio)
   com.amazon.aca                    # Amazon Click Agent (rastreio de anúncios)
-  com.amazon.advertisingidsettings  # ID de publicidade
-  com.amazon.bueller.notification   # notificações promocionais
+  com.amazon.media.recommendations  # motor de recomendações
+  com.amazon.hedwig                 # recomendações de conteúdo
+  com.amazon.tv.csapp               # app de conteúdo patrocinado em destaque na tela
+  com.amazon.kso.blackbird          # conteúdo patrocinado da tela inicial da Amazon
+  com.amazon.sneakpeek              # a prévia que toca sozinha quando o foco para num app
+  com.amazon.shoptv.firetv.client   # Shop TV (compras)
+  com.amazon.shoptv.client          # Shop TV (compras)
+  com.amazon.minitv.android.app     # MiniTV (streaming com anúncio)
+  com.amazon.gamehub                # vitrine de jogos
+  com.amazon.recess                 # proteção de tela com promoções da Amazon
   com.amazon.tmm.tutorial           # tutorial/propaganda da primeira vez
   com.amazon.tv.legal.notices       # avisos legais recorrentes
-  com.amazon.hedwig                 # recomendações de conteúdo
 )
 
 # Atualização do Fire OS. Travar evita que uma atualização volte o launcher de fábrica e

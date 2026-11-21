@@ -10,8 +10,8 @@ android {
         applicationId 'com.joao.tvhome'
         minSdk 26
         targetSdk 30
-        versionCode 8
-        versionName '1.6'
+        versionCode 9
+        versionName '1.6.1'
     }
 
     // Assinatura fixa: assim cada nova versão instala por cima da anterior sem desinstalar.

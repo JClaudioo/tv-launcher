@@ -70,7 +70,9 @@ public class MainActivity extends Activity {
      */
     static final String[] HIDDEN_PREFIX = {"com.amazon.tv.oobe", "com.amazon.tv.settings", "com.amazon.device.sale"};
 
-    /** Não aparecem na fileira: o launcher de fábrica, a Appstore e as Configurações têm atalho próprio. */
+    /** Não aparecem na fileira: o launcher de fábrica e a Appstore têm atalho próprio; o
+     *  resto é tela de sistema que não se abre pelo controle. Isto é o padrão — o que o
+     *  usuário quiser esconder além disto, ele oculta segurando o app (fica salvo em "ocultos"). */
     static final Set<String> HIDDEN = new HashSet<>(Arrays.asList(
             "com.amazon.tv.launcher",
             "com.amazon.firetv.launcher",
@@ -82,7 +84,16 @@ public class MainActivity extends Activity {
             "com.android.tv.settings",
             "com.android.documentsui",
             "com.google.android.tvlauncher",
-            "com.google.android.apps.tv.launcherx"
+            "com.google.android.apps.tv.launcherx",
+            // telas de sistema do Fire que apareciam como "app" mas não são de uso
+            "com.amazon.ftv.profilepicker",
+            "com.amazon.ftv.screensaver",
+            "com.amazon.ssm",
+            "com.amazon.firebat",
+            "com.amazon.firetv.troubleshooting",
+            "com.amazon.tahoe",
+            "com.amazon.vizzini.ftvcds",
+            "com.android.providers.downloads.ui"
     ));
 
     private static final float TILE = 132f;
@@ -98,6 +109,9 @@ public class MainActivity extends Activity {
     private String appsKey = "";
     private int lastFocus = 0;
     private Weather.Data weather;
+    // apps que o usuário escondeu segurando o bloco; ficam guardados entre reinícios
+    private final Set<String> ocultos = new HashSet<>();
+    private FrameLayout overlay;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable weatherLoop = new Runnable() {
@@ -119,6 +133,7 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         Ui.init(this);
         lastFocus = getPreferences(MODE_PRIVATE).getInt("foco", 0);
+        ocultos.addAll(getPreferences(MODE_PRIVATE).getStringSet("ocultos", new HashSet<>()));
         setContentView(build());
         weather = Weather.cached(this);
         showWeather();
@@ -166,8 +181,8 @@ public class MainActivity extends Activity {
         menu.setOrientation(LinearLayout.HORIZONTAL);
         menu.setClipChildren(false);
         pills.clear();
-        String[] names = {"Wi-Fi", "Appstore", "Configurações"};
-        int[] kinds = {PillIcon.WIFI, PillIcon.PLAY, PillIcon.GEAR};
+        String[] names = {"Wi-Fi", "Appstore", "Configurações", "Ocultos"};
+        int[] kinds = {PillIcon.WIFI, PillIcon.PLAY, PillIcon.GEAR, PillIcon.EYE};
         for (int i = 0; i < names.length; i++) {
             final int kind = kinds[i];
             View p = pill(names[i], kind);
@@ -251,17 +266,183 @@ public class MainActivity extends Activity {
     }
 
     private void onSystem(int kind) {
+        if (kind == PillIcon.EYE) {
+            showOcultos();
+            return;
+        }
         if (kind == PillIcon.PLAY) {
             // no Fire a loja é a Amazon Appstore
             Apps.launch(this, "com.amazon.venezia");
             return;
         }
         String action = kind == PillIcon.WIFI ? Settings.ACTION_WIFI_SETTINGS : Settings.ACTION_SETTINGS;
+        abrirConfiguracoes(action);
+    }
+
+    /**
+     * Abre as Configurações do Fire mirando direto o app de Configurações, não a ação genérica.
+     * A ação genérica caía no launcher da Amazon, e o Home on Fire, vendo o launcher dela abrir,
+     * achava que era a tela inicial voltando e expulsava o usuário. Forçando o pacote, vai direto.
+     */
+    private void abrirConfiguracoes(String action) {
+        String[] pkgs = {"com.amazon.tv.settings.v2", "com.amazon.tv.settings", "com.amazon.tv.settings.core", "com.android.tv.settings"};
+        for (String pkg : pkgs) {
+            Intent i = new Intent(action).setPackage(pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (i.resolveActivity(getPackageManager()) != null) {
+                startActivity(i);
+                return;
+            }
+        }
+        // nenhum respondeu com pacote fixo: tenta a ação solta (último recurso)
         try {
             startActivity(new Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (ActivityNotFoundException e) {
             startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         }
+    }
+
+    // ---------- ocultar apps da tela inicial ----------
+
+    private void saveOcultos() {
+        getPreferences(MODE_PRIVATE).edit().putStringSet("ocultos", new HashSet<>(ocultos)).apply();
+    }
+
+    /** Segurou um app: pergunta se quer ocultar. */
+    private void showHideDialog(Apps.Entry e) {
+        LinearLayout card = cardBase();
+        TextView t = Ui.text(this, 30, 500, Ui.WHITE);
+        t.setText("Ocultar " + e.label + "?");
+        card.addView(t);
+        TextView sub = Ui.text(this, 22, 300, 0xB3FFFFFF);
+        sub.setText("Some da tela inicial. Você traz de volta no botão Ocultos, lá em cima.");
+        LinearLayout.LayoutParams slp = wrap();
+        slp.topMargin = Ui.px(10);
+        slp.bottomMargin = Ui.px(26);
+        card.addView(sub, slp);
+
+        LinearLayout linha = new LinearLayout(this);
+        linha.setOrientation(LinearLayout.HORIZONTAL);
+        TextView ok = menuButton("Ocultar", true, () -> {
+            ocultos.add(e.pkg);
+            saveOcultos();
+            removeOverlay();
+            fillApps();
+            focusApps();
+        });
+        TextView no = menuButton("Cancelar", false, () -> {
+            removeOverlay();
+            focusApps();
+        });
+        linha.addView(ok);
+        LinearLayout.LayoutParams nlp = wrap();
+        nlp.leftMargin = Ui.px(12);
+        linha.addView(no, nlp);
+        card.addView(linha);
+
+        openOverlay(card);
+        ok.requestFocus();
+    }
+
+    /** Lista os apps ocultos, cada um com "Mostrar" para trazer de volta. */
+    private void showOcultos() {
+        LinearLayout card = cardBase();
+        card.setMinimumWidth(Ui.px(760));
+        TextView t = Ui.text(this, 30, 500, Ui.WHITE);
+        t.setText("Apps ocultos");
+        card.addView(t);
+
+        View primeiro = null;
+        if (ocultos.isEmpty()) {
+            TextView sub = Ui.text(this, 22, 300, 0xB3FFFFFF);
+            sub.setText("Nenhum app oculto. Segure um app na tela inicial para ocultá-lo.");
+            LinearLayout.LayoutParams slp = wrap();
+            slp.topMargin = Ui.px(14);
+            slp.bottomMargin = Ui.px(10);
+            card.addView(sub, slp);
+        } else {
+            List<String> ord = new ArrayList<>(ocultos);
+            ord.sort((a, b) -> Apps.label(this, a).compareToIgnoreCase(Apps.label(this, b)));
+            for (final String pkg : ord) {
+                TextView row = menuButton(Apps.label(this, pkg) + "   ·   Mostrar", false, () -> {
+                    ocultos.remove(pkg);
+                    saveOcultos();
+                    fillApps();
+                    showOcultos();
+                });
+                LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                rlp.topMargin = Ui.px(10);
+                card.addView(row, rlp);
+                if (primeiro == null) primeiro = row;
+            }
+        }
+        TextView fechar = menuButton("Fechar", true, () -> {
+            removeOverlay();
+            focusApps();
+        });
+        LinearLayout.LayoutParams flp = wrap();
+        flp.topMargin = Ui.px(22);
+        card.addView(fechar, flp);
+
+        openOverlay(card);
+        (primeiro != null ? primeiro : fechar).requestFocus();
+    }
+
+    private LinearLayout cardBase() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(Ui.px(40), Ui.px(36), Ui.px(40), Ui.px(36));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(Ui.pxf(28));
+        bg.setColor(0xF21A1C22);
+        bg.setStroke(Math.max(1, Ui.px(1)), 0x33FFFFFF);
+        card.setBackground(bg);
+        return card;
+    }
+
+    private TextView menuButton(String text, boolean primary, final Runnable onClick) {
+        final TextView b = Ui.text(this, 25, primary ? 500 : 300, Ui.WHITE);
+        b.setText(text);
+        b.setFocusable(true);
+        b.setClickable(true);
+        b.setPadding(Ui.px(26), Ui.px(16), Ui.px(26), Ui.px(16));
+        final GradientDrawable off = new GradientDrawable();
+        off.setCornerRadius(Ui.pxf(16));
+        off.setColor(primary ? Ui.alpha(Ui.ACCENT, 0.30f) : 0x14FFFFFF);
+        final GradientDrawable on = new GradientDrawable();
+        on.setCornerRadius(Ui.pxf(16));
+        on.setColor(primary ? Ui.ACCENT : 0x33FFFFFF);
+        on.setStroke(Ui.px(2), Ui.WHITE);
+        b.setBackground(off);
+        b.setOnFocusChangeListener((v, has) -> b.setBackground(has ? on : off));
+        b.setOnClickListener(v -> onClick.run());
+        return b;
+    }
+
+    private void openOverlay(View card) {
+        removeOverlay();
+        overlay = new FrameLayout(this);
+        overlay.setBackgroundColor(0xCC000000);
+        overlay.setClickable(true);
+        overlay.setFocusable(true);
+        overlay.addView(card, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        root.addView(overlay, match());
+        conteudoFocavel(false); // nada atrás do diálogo rouba o foco
+    }
+
+    private void removeOverlay() {
+        if (overlay != null) {
+            root.removeView(overlay);
+            overlay = null;
+        }
+        conteudoFocavel(true);
+    }
+
+    /** Liga/desliga o foco dos apps e do menu de cima — usado para prender o foco no diálogo. */
+    private void conteudoFocavel(boolean on) {
+        for (View t : tiles) t.setFocusable(on);
+        for (View p : pills) p.setFocusable(on);
     }
 
     // ---------- clima de Ceres ----------
@@ -411,11 +592,12 @@ public class MainActivity extends Activity {
         List<Apps.Entry> all = Apps.all(this);
         List<Apps.Entry> out = new ArrayList<>();
         for (String pkg : ORDER) {
+            if (HIDDEN.contains(pkg) || ocultos.contains(pkg)) continue;
             for (Apps.Entry e : all) if (e.pkg.equals(pkg)) out.add(e);
         }
         Set<String> first = new HashSet<>(Arrays.asList(ORDER));
         for (Apps.Entry e : all) {
-            if (!first.contains(e.pkg) && !HIDDEN.contains(e.pkg) && !factory(e.pkg)) out.add(e);
+            if (!first.contains(e.pkg) && !HIDDEN.contains(e.pkg) && !factory(e.pkg) && !ocultos.contains(e.pkg)) out.add(e);
         }
         return out;
     }
@@ -464,6 +646,7 @@ public class MainActivity extends Activity {
                 if (has) lastFocus = index;
             });
             tile.setOnClickListener(v -> Apps.launch(this, e.pkg));
+            tile.setOnLongClickListener(v -> { showHideDialog(e); return true; });
 
             // largura fixa por app: o bloco e o nome cabem e nada fica por cima do vizinho
             LinearLayout.LayoutParams colp = new LinearLayout.LayoutParams(Ui.px(TILE + 24), ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -532,6 +715,12 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        // com o diálogo aberto (ocultar/ocultos), voltar fecha só ele
+        if (overlay != null) {
+            removeOverlay();
+            focusApps();
+            return;
+        }
         // é a tela inicial: voltar só leva o foco de volta aos apps
         focusApps();
     }
@@ -570,7 +759,7 @@ public class MainActivity extends Activity {
 
     /** Ícones pequenos do menu Sistema, em traço branco. */
     static class PillIcon extends View {
-        static final int WIFI = 0, PLAY = 1, GEAR = 2;
+        static final int WIFI = 0, PLAY = 1, GEAR = 2, EYE = 3;
         private final int kind;
         private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
 
@@ -600,6 +789,9 @@ public class MainActivity extends Activity {
                 p.lineTo(6 * u, 20.5f * u);
                 p.close();
                 c.drawPath(p, stroke);
+            } else if (kind == EYE) {
+                c.drawOval(new RectF(3 * u, 7 * u, 21 * u, 17 * u), stroke);
+                c.drawCircle(12 * u, 12 * u, 2.6f * u, stroke);
             } else {
                 float cx = 12 * u, cy = 12 * u;
                 c.drawCircle(cx, cy, 3f * u, stroke);
